@@ -1,0 +1,13 @@
+name: Reblog Media Helper
+id: ReblogMediaHelper
+description: Helps Reblog to read <media:id> tags in feeds from other blogs within the same MT instance and associate those assets with imported entries.
+author_name: After6 Services LLC
+author_email: customer.service@after6services.com
+author_link: http://www.after6services.com/
+doc_link: http://github.com/After6Services/mt-plugin-reblog-media-helper
+
+version: 0.1
+schema_version: 0.1
+
+callbacks:
+    plugin_reblog_entry_parsed: $ReblogMediaHelper::ReblogMediaHelper::reblog_entry_parsed
