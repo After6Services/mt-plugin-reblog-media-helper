@@ -6,7 +6,7 @@ author_email: customer.service@after6services.com
 author_link: http://www.after6services.com/
 doc_link: http://github.com/After6Services/mt-plugin-reblog-media-helper
 
-version: 0.1
+version: 0.2
 schema_version: 0.1
 
 callbacks:
