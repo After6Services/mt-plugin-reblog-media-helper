@@ -10,8 +10,14 @@ sub reblog_entry_parsed {
 
     # looking for <media:id>123</media:id> inside the entry/item xml
     if ( my $media_id = $parser->findvalue('media:id', $node) ) {
-        require MT::ObjectAsset;
+        # make sure the xpath value is stringified 
+        $media_id = "$media_id";
 
+        # make sure that the asset exists
+        require MT::Asset;
+        return unless MT::Asset->load($media_id);
+
+        require MT::ObjectAsset;
         my @entry_assets = MT::ObjectAsset->load({
             object_ds => 'entry',
             object_id => $entry->id,
