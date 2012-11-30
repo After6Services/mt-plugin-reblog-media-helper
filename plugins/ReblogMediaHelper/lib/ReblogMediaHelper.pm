@@ -8,40 +8,62 @@ sub reblog_entry_parsed {
     my ($cb, $entry, $rb_data, $args) = @_;
     my ($node, $parser, $parser_type) = @{ $args }{ qw/node parser parser_type/ };
 
-    # looking for <media:id>123</media:id> inside the entry/item xml
-    if ( my $media_id = $parser->findvalue('media:id', $node) ) {
-        # make sure the xpath value is stringified 
-        $media_id = "$media_id";
+    require MT::ObjectAsset;
+    my @entry_oa = MT::ObjectAsset->load({
+        object_ds => 'entry',
+        object_id => $entry->id,
+        blog_id   => $entry->blog_id,
+    });
+
+    my @new_oa;
+
+    # looking for all media/asset ids inside the entry/item xml:
+    #
+    #     <media:item>
+    #         <media:id>xxx</media:id>
+    #         ...
+    #     </media:item>
+    #     <media:item>
+    #         <media:id>xxx</media:id>
+    #         ...
+    #     </media:item>
+    #     ...
+    my @mnodes = $parser->findnodes('media:item/media:id', $node);
+
+    foreach my $mnode (@mnodes) {
+        my $id = $mnode->string_value;
 
         # make sure that the asset exists
         require MT::Asset;
-        return unless MT::Asset->load($media_id);
+        next unless MT::Asset->load($id);
 
-        require MT::ObjectAsset;
-        my @entry_assets = MT::ObjectAsset->load({
-            object_ds => 'entry',
-            object_id => $entry->id,
-            blog_id   => $entry->blog_id,
-        });
+        # just linked
+        next if grep { $id eq $_->asset_id } @new_oa;
+
+        # was linked previously
+        my ($old_oa) = grep { $id eq $_->asset_id } @entry_oa;
+        push(@new_oa, $old_oa), next if $old_oa;
 
         # creating a new entry-asset link when it's missing
-        unless ( grep { $_->asset_id eq $media_id } @entry_assets ) {
-            my $oa = MT::ObjectAsset->new;
-            $oa->set_values({
-                object_ds => $entry->datasource,
-                object_id => $entry->id,
-                blog_id   => $entry->blog_id,
-                asset_id  => $media_id,
-            });
-            $oa->save
-                or die 'Error saving object-asset association: ' . $oa->errstr;
-        }
+        my $oa = MT::ObjectAsset->new;
+        $oa->set_values({
+            object_ds => $entry->datasource,
+            object_id => $entry->id,
+            blog_id   => $entry->blog_id,
+            asset_id  => $id,
+        });
+        $oa->save
+            or die 'Error saving object-asset association: ' . $oa->errstr;
 
-        # deleting all other entry-asset links
-        for my $oa ( grep { $_->asset_id ne $media_id } @entry_assets ) {
-            $oa->remove
-                or die 'Error removing object-asset association: ' . $oa->errstr;
-        }
+        push @new_oa, $oa;
+    }
+
+    # deleting old entry-asset links
+    foreach my $old_oa (@entry_oa) {
+        next if grep { $old_oa->asset_id eq $_->asset_id } @new_oa;
+
+        $old_oa->remove
+            or die 'Error removing object-asset association: ' . $old_oa->errstr;
     }
 }
 
